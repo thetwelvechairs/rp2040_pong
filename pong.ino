@@ -1,15 +1,13 @@
-#include <Arduino.h>
 #include <Adafruit_GFX.h>         // Core graphics library
 #include <Adafruit_ST7789.h>      // Hardware-specific library for ST7789
-#include <SdFat.h>                // SD card & FAT filesystem library
-#include <Adafruit_SPIFlash.h>    // SPI / QSPI flash library
 #include <Adafruit_ImageReader.h> // Image-reading functions
+#include <SdFat.h>                // SD card & FAT filesystem library
 #include <SPI.h>
 
 #define SD_CS     8   // SD card select pin
+#define TFT_DC    9
 #define TFT_CS    10
 #define TFT_RST   -1  // Or set to -1 and connect to Arduino RESET pin
-#define TFT_DC    9
 
 #define ST77XX_PINK       0xFB9B
 #define ST77XX_DARKGREEN  0x0BA8
@@ -19,25 +17,8 @@
 #define POTENTIOMETER_PIN1 A0
 #define POTENTIOMETER_PIN2 A1
 
-#if defined(USE_SD_CARD)
-SdFat SD;         // SD card filesystem
-Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD filesys
-#else
-// SPI or QSPI flash filesystem (i.e. CIRCUITPY drive)
-  #if defined(__SAMD51__) || defined(NRF52840_XXAA)
-    Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS,
-      PIN_QSPI_IO0, PIN_QSPI_IO1, PIN_QSPI_IO2, PIN_QSPI_IO3);
-  #else
-    #if (SPI_INTERFACES_COUNT == 1)
-      Adafruit_FlashTransport_SPI flashTransport(SS, &SPI);
-    #else
-      Adafruit_FlashTransport_SPI flashTransport(SS1, &SPI1);
-    #endif
-  #endif
-  Adafruit_SPIFlash    flash(&flashTransport);
-  FatFileSystem        filesys;
-  Adafruit_ImageReader reader(filesys); // Image-reader, pass in flash filesys
-#endif
+SdFat SD;                         // SD card filesystem
+Adafruit_ImageReader reader(SD);  // Image-reader object, pass in SD filesys
 
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 Adafruit_Image img;     // An image loaded into RAM
@@ -53,7 +34,9 @@ int charMaxWidth;
 int charMaxHeight;
 int charMinWidth = 0;
 int charMinHeight = 0;
-auto backgroundColor = ST77XX_DARKGREEN;
+
+uint16_t backgroundColor = ST77XX_DARKGREEN;
+
 bool playIntro = true;
 
 int startX1;
