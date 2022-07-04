@@ -12,5 +12,5 @@
 
 BMP converted via ImageMagick:
 ```
-convert IMG_6996.png -type truecolor sofia.bmp
+convert INPUT.png -type truecolor OUTPUT.bmp
 ```
