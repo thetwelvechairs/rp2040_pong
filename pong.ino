@@ -181,29 +181,10 @@ void setup() {
     tft.setRotation(3);
     tft.fillScreen(backgroundColor);
 
-    // The Adafruit_ImageReader constructor call (above, before setup())
-    // accepts an uninitialized SdFat or FatFileSystem object. This MUST
-    // BE INITIALIZED before using any of the image reader functions!
-    Serial.print(F("Initializing filesystem..."));
-#if defined(USE_SD_CARD)
-    // SD card is pretty straightforward, a single call...
     if(!SD.begin(SD_CS, SD_SCK_MHZ(10))) { // Breakouts require 10 MHz limit due to longer wires
         Serial.println(F("SD begin() failed"));
         for(;;); // Fatal error, do not continue
     }
-#else
-        // SPI or QSPI flash requires two steps, one to access the bare flash
-    // memory itself, then the second to access the filesystem within...
-    if(!flash.begin()) {
-      Serial.println(F("flash begin() failed"));
-      for(;;);
-    }
-    if(!filesys.begin(&flash)) {
-      Serial.println(F("filesys begin() failed"));
-      for(;;);
-    }
-#endif
-    Serial.println(F("OK!"));
 
     charMaxWidth = width / charWidth;
     charMaxHeight = height / charHeight;
@@ -234,9 +215,6 @@ void loop() {
 
     ball.x = ball.x + ball.ballDirection;
     ball.y = ball.y + ball.ballUp;
-//    player1.score = ball.x;
-//    player2.score = ball.y;
-//    updateScore();
 
     tft.drawCircle(ball.x, ball.y, ball.radius + 1, ST77XX_BLACK);
     tft.fillCircle(ball.x, ball.y, ball.radius, ST77XX_YELLOW);
