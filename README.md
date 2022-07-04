@@ -1,6 +1,6 @@
 # rp2040_pong
 
-<img width="374" alt="Screen Shot 2022-07-04 at 15 18 15" src="https://user-images.githubusercontent.com/56702533/177208104-c7e5cad8-01e2-4a63-9b5a-0ac2de6c3a69.png">
+![IMG_0177](https://user-images.githubusercontent.com/56702533/177210177-99a391de-5586-4496-980f-2de0833c8f42.jpeg)
 
 * Adafruit Feather RP2040
 * Adafruit 1.9" 320x170 Color IPS TFT Display - ST7789
