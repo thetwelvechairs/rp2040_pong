@@ -181,9 +181,9 @@ void setup() {
     tft.setRotation(3);
     tft.fillScreen(backgroundColor);
 
-    if(!SD.begin(SD_CS, SD_SCK_MHZ(10))) { // Breakouts require 10 MHz limit due to longer wires
+    if(!SD.begin(SD_CS, SD_SCK_MHZ(10))) {      // Breakouts require 10 MHz limit due to longer wires
         Serial.println(F("SD begin() failed"));
-        for(;;); // Fatal error, do not continue
+        exit(1);
     }
 
     charMaxWidth = width / charWidth;
