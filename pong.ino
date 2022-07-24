@@ -1,7 +1,7 @@
 #include <Adafruit_GFX.h>         // Core graphics library
 #include <Adafruit_ST7789.h>      // Hardware-specific library for ST7789
 #include <Adafruit_ImageReader.h> // Image-reading functions
-#include <SdFat.h>                // SD card & FAT filesystem library
+#include <Adafruit_NeoPixel.h>
 #include <SPI.h>
 
 #define SD_CS     8   // SD card select pin
@@ -14,8 +14,12 @@
 
 #define USE_SD_CARD
 
-#define POTENTIOMETER_PIN1 A0
-#define POTENTIOMETER_PIN2 A1
+#define PIN        16
+#define NUMPIXELS 1
+
+#define POTENTIOMETER_PIN1 A1
+#define POTENTIOMETER_PIN2 A3
+
 
 SdFat SD;                         // SD card filesystem
 Adafruit_ImageReader reader(SD);  // Image-reader object, pass in SD filesys
@@ -25,8 +29,13 @@ Adafruit_Image img;     // An image loaded into RAM
 int32_t imageWidth = 0; // BMP image dimensions
 int32_t imageHeight = 0;
 
-int width = 320;
-int height = 170;
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+const int width = 320;
+const int height = 170;
+
+const int STARTX1 = (width / 4) - 12;
+const int STARTX2 = (width - STARTX1) - 6;
 
 int charWidth;
 int charHeight;
@@ -35,12 +44,15 @@ int charMaxHeight;
 int charMinWidth = 0;
 int charMinHeight = 0;
 
-uint16_t backgroundColor = ST77XX_DARKGREEN;
+const uint16_t backgroundColor = ST77XX_DARKGREEN;
 
 bool playIntro = true;
+bool ledOn = true;
 
-int startX1;
-int startX2;
+int lastPlayer = 1;
+
+int brightness = 0;
+int fadeAmount = 5;
 
 uint16_t localTime = millis();
 
@@ -71,46 +83,45 @@ struct ball {
 
 } ball{};
 
-void updateScore(){
+void updateScore1(){
     tft.setTextSize(2);
-    
-    startX1 = width / 4;
-    startX2 = width - startX1;
 
-    if (player1.score < 10){
-        startX1 = startX1 - 8;
-        startX2 = startX2 - 4;
-    }
-    else if (player1.score >= 10 && player1.score < 100){
-        startX1 = startX1 - 12;
-        startX2 = startX2 - 6;
-    }
-    
-    tft.fillRect(startX1, 2, 30, 18, backgroundColor);
-    tft.fillRect(startX2, 2, 30, 18, backgroundColor);
+    tft.fillRect(STARTX1, 2, 30, 18, backgroundColor);
 
     tft.setTextColor(ST77XX_BLACK);
-    tft.setCursor(startX1 + 1, 5);
+    tft.setCursor(STARTX1 + 1, 5);
     tft.print(player1.score);
-    tft.setCursor(startX2 + 1, 5);
+
+    tft.setTextColor(ST77XX_GREEN);
+    tft.setCursor(STARTX1, 4);
+    tft.print(player1.score);
+}
+
+void updateScore2(){
+    tft.setTextSize(2);
+
+    tft.fillRect(STARTX2, 2, 30, 18, backgroundColor);
+
+    tft.setTextColor(ST77XX_BLACK);
+    tft.setCursor(STARTX2 + 1, 5);
     tft.print(player2.score);
 
     tft.setTextColor(ST77XX_GREEN);
-    tft.setCursor(startX1, 4);
-    tft.print(player1.score);
-    tft.setCursor(startX2, 4);
+    tft.setCursor(STARTX2, 4);
     tft.print(player2.score);
 }
 
 void changeDirectionX(){
     ball.ballDirection *= -1;
+    ledOn = true;
 }
 
 void changeDirectionY(){
     ball.ballUp *= -1;
+    ledOn = true;
 }
 
-void drawNet(){
+void drawField(){
     tft.drawFastHLine(0, 0, width, ST77XX_WHITE);
     tft.drawFastHLine(0, height-1, width, ST77XX_WHITE);
 
@@ -123,43 +134,53 @@ void drawNet(){
     tft.drawFastVLine(width/2, 0, height, ST77XX_WHITE);
 }
 
-void checkCollision(){
+bool checkCollision(){
+    bool playerCollision = false;
+
     // Player 1 paddle collision
-    if (ball.ballDirection < 0 && ball.x == (player1.x + player1.width)){
+    if ((ball.x - ball.radius == player1.x + player1.width + 2) ||
+        (ball.x + ball.radius == player1.x - player1.width)){
         if (ball.y >= player1.y && ball.y <= (player1.y + player1.height)){
+            playerCollision = true;
+            lastPlayer = 1;
             changeDirectionX();
         }
     }
     // Player 2 paddle collision
-    if (ball.ballDirection > 0 && ball.x == (player2.x)){
+    if ((ball.x + ball.radius == player2.x - 2) ||
+        (ball.x - ball.radius == player2.x + player2.width)){
         if (ball.y >= player2.y && ball.y <= (player2.y + player2.height)){
+            playerCollision = true;
+            lastPlayer = 2;
             changeDirectionX();
         }
     }
 
     // Left wall collision
     if (ball.x == 0){
-        if (player2.score < 99){
-            player2.score++;
+        if (lastPlayer == 2){
+            if (player2.score < 99){
+                player2.score++;
+            }
+            else {
+                player2.score = 0;
+            }
         }
-        else {
-            player2.score = 0;
-        }
-        updateScore();
-        delay(500);
+        updateScore2();
         changeDirectionX();
     }
 
     // Right wall collision
     if (ball.x >= width){
-        if (player1.score < 99){
-            player1.score++;
+        if (lastPlayer == 1){
+            if (player1.score < 99){
+                player1.score++;
+            }
+            else {
+                player1.score = 0;
+            }
         }
-        else {
-            player1.score = 0;
-        }
-        updateScore();
-        delay(500);
+        updateScore1();
         changeDirectionX();
     }
 
@@ -172,6 +193,18 @@ void checkCollision(){
     if (ball.y >= height){
         changeDirectionY();
     }
+
+    return playerCollision;
+}
+
+void cycleLed(){
+    if (ledOn == true){
+      pixels.setPixelColor(0, pixels.Color(255, 255, 255));
+    }
+    else {
+      pixels.setPixelColor(0, pixels.Color(0, 0, 0));
+    }
+    pixels.show();
 }
 
 void setup() {
@@ -181,7 +214,7 @@ void setup() {
     tft.setRotation(3);
     tft.fillScreen(backgroundColor);
 
-    if(!SD.begin(SD_CS, SD_SCK_MHZ(10))) {      // Breakouts require 10 MHz limit due to longer wires
+    if(!SD.begin(SD_CS, SD_SCK_MHZ(10))) { // Breakouts require 10 MHz limit due to longer wires
         Serial.println(F("SD begin() failed"));
         exit(1);
     }
@@ -201,16 +234,19 @@ void setup() {
     tft.println("Super");
     tft.setCursor(140, 110);
     tft.print("Tennis!");
-    delay(1000);
+    delay(5000);
 
     // Game screen init
     tft.fillScreen(backgroundColor);
-    updateScore();
+    updateScore1();
+    updateScore2();
 }
 
 void loop() {
-    drawNet();
-
+    ledOn = false;
+    
+    drawField();
+  
     tft.fillCircle(ball.x, ball.y, ball.radius + 1, backgroundColor);
 
     ball.x = ball.x + ball.ballDirection;
@@ -219,19 +255,30 @@ void loop() {
     tft.drawCircle(ball.x, ball.y, ball.radius + 1, ST77XX_BLACK);
     tft.fillCircle(ball.x, ball.y, ball.radius, ST77XX_YELLOW);
 
-    checkCollision();
-
     auto player1Pin = map(analogRead(POTENTIOMETER_PIN1), 0, 1023, 2, 120);
-    if (player1.y != player1Pin){
+    auto player2Pin = map(analogRead(POTENTIOMETER_PIN2), 1023, 0, 2, 120);
+
+    bool collision = checkCollision();
+
+    if (collision == true || (player1.y != player1Pin) || (player2.y != player2Pin) ){
         tft.fillRect(player1.x, player1.y, player1.width, player1.height, backgroundColor);
         player1.y = player1Pin;
         tft.fillRect(player1.x, player1.y, player1.width, player1.height, player1.color);
-    }
 
-    auto player2Pin = map(analogRead(POTENTIOMETER_PIN2), 0, 1023, 2, 120);
-    if (player2.y != player2Pin){
         tft.fillRect(player2.x, player2.y, player2.width, player2.height, backgroundColor);
         player2.y = player2Pin;
         tft.fillRect(player2.x, player2.y, player2.width, player2.height, player2.color);
     }
+
+    if (ball.y >= 2 && ball.y <= 22){
+      if (ball.x >= STARTX1 - 10 && ball.x <= STARTX1 + 30){
+        updateScore1();
+      }
+      if (ball.x >= STARTX2 - 10 && ball.x <= STARTX2 + 30){
+        updateScore2();
+      }
+    }
+
+    cycleLed();
+
 }
